@@ -1,0 +1,433 @@
+---
+title: "Assignment 3 - Part 1 - Voice In Schizophrenia"
+author: "Rebecca Folmer Schade"
+date: "August 09, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Assignment 3 - Part 1 - Assessing voice in schizophrenia
+
+Individuals with schizophrenia (SCZ) tend to present voice atypicalities. Their tone is described as "inappropriate" voice, sometimes monotone, sometimes croaky. This is important for two reasons. First, voice could constitute a direct window into cognitive, emotional and social components of the disorder, thus providing a cheap and relatively non-invasive way to support the diagnostic and assessment process (via automated analyses). Second, voice atypicalities play an important role in the social impairment experienced by individuals with SCZ, and are thought to generate negative social judgments (of unengaged, slow, unpleasant interlocutors), which can cascade in more negative and less frequent social interactions.
+
+Several studies show *significant* differences in acoustic features by diagnosis (see meta-analysis in the readings), but we want more. We want to know whether we can diagnose a participant only from knowing the features of their voice.
+
+The corpus you are asked to analyse is a relatively large set of voice recordings from people with schizophrenia (just after first diagnosis) and matched controls (on gender, age, education). Each participant watched several videos of triangles moving across the screen and had to describe them (so you have several recordings per person). We have already extracted the pitch once every 10 milliseconds as well as several duration related features (e.g. number of pauses, etc).
+
+N.B. For the fun of it, I threw in data from 3 different languages: 1) Danish (study 1-4); 2) Mandarin Chinese (Study 5-6); 3) Japanese (study 7). Feel free to only use the Danish data, if you think that Mandarin and Japanese add too much complexity to your analysis.
+
+In this assignment (A3), you will have to discuss a few important questions (given the data you have). More details below.
+
+Part 1 - Can we find a difference in acoustic features in schizophrenia?
+- Describe your sample (n of studies, n of participants, age, gender, clinical and cognitive features of the two groups) and critically assess whether the groups (schizophrenia and controls) are balanced. N.B. you need to take studies into account.
+- Discuss the analysis necessary to replicate the meta-analytic findings: which fixed and random effects should be included, given your dataset? E.g. what about language and study, age and gender? Discuss also how studies and languages should play a role in your analyses. E.g. should you analyze each study individually? Or each language individually? Or all together? Each of these choices makes some assumptions about how similar you expect the studies/languages to be.
+- Describe the acoustic profile of a schizophrenic voice: which features are different? E.g. People with schizophrenia tend to have high-pitched voice, and present bigger swings in their prosody than controls. N.B. look also at effect sizes. How do these findings relate to the meta-analytic findings?
+- Your report should look like a methods paragraph followed by a result paragraph in a typical article (think the Communication and Cognition paper)
+
+Part 2 - Can we diagnose schizophrenia from voice only?
+
+- Should you run the analysis on all studies and both languages at the same time? 
+- Choose your best acoustic feature from part 1. How well can you diagnose schizophrenia just using it?
+- Identify the best combination of acoustic features to diagnose schizophrenia using logistic regression.
+- Discuss the "classification" process: which methods are you using? Which confounds should you be aware of? What are the strength and limitation of the analysis?
+
+Bonus question: Logistic regression is only one of many classification algorithms. Try using others and compare performance. Some examples: Discriminant Function, Random Forest, Support Vector Machine, Penalized regression, etc. The packages caret and glmnet provide them. Tidymodels is a set of tidyverse style packages, which take some time to learn, but provides a great workflow for machine learning.
+
+## Learning objectives
+
+- Critically design, fit and report multilevel regression models in complex settings
+- Critically appraise issues of replication
+
+
+## Overview of part 1
+
+In the course of this part 1 of Assignment 3 you have to:
+- combine the different information from multiple files into one meaningful dataset you can use for your analysis. This involves: extracting descriptors of acoustic features from each pitch file (e.g. mean/median, standard deviation / interquartile range), and combine them with duration and demographic/clinical files
+- describe and discuss your sample
+- analyze the meaningful dataset to assess whether there are indeed differences in the schizophrenic voice and compare that to the meta-analysis
+
+There are three pieces of data:
+
+1- Demographic data (https://www.dropbox.com/s/6eyukt0r5du0xif/DemoData.txt?dl=0). It contains
+
+- Study: a study identifier (the recordings were collected during 6 different studies with 6 different clinical practitioners in 2 different languages)
+- Language: Danish, Chinese and Japanese
+- Participant: a subject ID
+- Diagnosis: whether the participant has schizophrenia or is a control
+- Gender
+- Education
+- Age
+- SANS: total score of negative symptoms (including lack of motivation, affect, etc). Ref: Andreasen, N. C. (1989). The Scale for the Assessment of Negative Symptoms (SANS): conceptual and theoretical foundations. The British Journal of Psychiatry, 155(S7), 49-52.
+- SAPS: total score of positive symptoms (including psychoses, such as delusions and hallucinations): http://www.bli.uzh.ch/BLI/PDF/saps.pdf
+- VerbalIQ: https://en.wikipedia.org/wiki/Wechsler_Adult_Intelligence_Scale
+- NonVerbalIQ: https://en.wikipedia.org/wiki/Wechsler_Adult_Intelligence_Scale
+- TotalIQ: https://en.wikipedia.org/wiki/Wechsler_Adult_Intelligence_Scale
+
+2. Articulation.txt (https://www.dropbox.com/s/v86s6270w39g0rd/Articulation.txt?dl=0). It contains, per each file, measures of duration:
+- soundname: the name of the recording file
+- nsyll: number of syllables automatically inferred from the audio
+- npause: number of pauses automatically inferred from the audio (absence of human voice longer than 200 milliseconds)
+- dur (s): duration of the full recording
+- phonationtime (s): duration of the recording where speech is present
+- speechrate (nsyll/dur): average number of syllables per second
+- articulation rate (nsyll / phonationtime): average number of syllables per spoken second
+- ASD (speakingtime/nsyll): average syllable duration
+
+3. One file per recording with the fundamental frequency of speech extracted every 10 milliseconds (excluding pauses): https://www.dropbox.com/sh/b9oc743auphzxbg/AAChUsvFc6dIQSlM9eQTL53Aa?dl=0
+- time: the time at which fundamental frequency was sampled
+- f0: a measure of fundamental frequency, in Herz
+
+NB. the filenames indicate:
+- Study: the study, 1-6 (1-4 in Danish, 5-6 in Mandarin Chinese)
+- D: the diagnosis, 0 is control, 1 is schizophrenia
+- S: the subject ID (NB. some controls and schizophrenia are matched, so there is a 101 schizophrenic and a 101 control). Also note that study 5-6 have weird numbers and no matched participants, so feel free to add e.g. 1000 to the participant ID in those studies.
+- T: the trial, that is, the recording ID for that participant, 1-10 (note that study 5-6 have more)
+
+### Getting to the pitch data
+
+You have oh so many pitch files. What you want is a neater dataset, with one row per recording, including a bunch of meaningful descriptors of pitch. For instance, we should include "standard" descriptors: mean, standard deviation, range. Additionally, we should also include less standard, but more robust ones: e.g. median, iqr, mean absoluted deviation, coefficient of variation. The latter ones are more robust to outliers and non-normal distributions.
+
+Tip: Load one file (as a sample) and:
+- write code to extract the descriptors
+- write code to extract the relevant information from the file names (Participant, Diagnosis, Trial, Study)
+Only then (when everything works) turn the code into a function and use map_df() to apply it to all the files.
+See placeholder code here for help.
+
+```{r}
+pacman::p_load(backports, tidyverse, janitor, plyr)
+
+
+
+# all the files are called something like this "Pitch/Study1D0S101T1_f0.txt"
+
+
+read_pitch <- function(filename) {
+    #--> load data
+    df <- read.delim(filename, header=TRUE)
+    
+    #--> parse filename to extract study, diagnosis, subject and trial
+    # Participant
+    p <- filename %>% str_split(pattern = "S", simplify = T)
+    p <- str_extract(p[3], "\\d{1,3}")
+    # Diagnosis
+    D <- filename %>% str_split(pattern = "D", simplify = T)
+    D <- str_extract(D[2], "\\d{1}")
+    # Trial
+    Tr <- filename %>% str_split(pattern = "T", simplify = T)
+    Tr <- str_extract(Tr[2], "\\d{1,2}")
+    # Study
+    study <- filename %>% str_split(pattern = "y", simplify = T)
+    study <- str_extract(study[2], "\\d{1}")
+
+    #--> extract pitch descriptors (mean, sd, iqr, etc)
+    # Mean
+    m <- mean(df$f0)
+    # Standard deviation
+    s <- sd(df$f0)
+    # Range 
+    r <- range(df$f0)
+    # median
+    m2 <- median(df$f0)
+    # igr
+    iqr <- IQR(df$f0) 
+    # mean absoluted deviation 
+    m3 <- mad(df$f0)
+    # coefficient of variation 
+    CV <-sd(df$f0)/mean(df$f0)*100
+    
+    # combine all this data in one dataset
+    data <- data.frame(p, D, Tr, study, m, s, r[1], r[2], m2, iqr, m3, CV) 
+    colnames(data) <- c("subj", "diagnosis", "trial", "study", "mean", "sd", "min", "max", "median", "IQR", "MAD", "CV")
+    # return
+    return(data)
+}
+
+# test it on just one file while writing the function
+test_data = read_pitch("Pitch/Study1D0S101T10_f0.txt")
+
+# when you've created a function that works, you can
+setwd("~/Uni/Experimental methods 3/Assignments/Actual-Assignment-3/Pitch/"); pitch_data = list.files(pattern = ".txt")%>% purrr::map_df(read_pitch)
+
+# Writing a CSV file because the function takes VERY long to run
+write_csv(pitch_data, "dataset.csv")
+
+```
+
+
+### Now you need to merge demographic/clinical, duration and pitch data
+
+```{r}
+# Let's start with the demographic and clinical data
+demo <- read.csv("DemographicData.csv", sep = ";")
+# then duration data
+durr <- read.delim("Articulation.txt", sep = ",")
+# Finally the pitch data
+pitch <- read.csv("dataset.csv")
+# Doing something nice for the pitch dataframe 
+pitch$diagnosis <- as.factor(pitch$diagnosis) %>% revalue(c("0"="HC", "1"="SCZ"))
+
+#-------> Now we merge them
+#--> Correcting demo
+# removing NAs
+demo <- subset(demo, !is.na(Participant))
+# Correcting colnames for demo
+colnames(demo)[1] <- "study"
+colnames(demo)[3] <- "diagnosis"
+colnames(demo)[4] <- "subj"
+# releveling diagnosis 
+levels(demo$diagnosis)
+demo$diagnosis <- as.character(demo$diagnosis) %>% as.factor() %>% revalue(c("Control"="HC", "Schizophrenia"="SCZ"))
+levels(demo$diagnosis) # Much better
+
+# Dealing with the issue of weird participant numbers
+demo <- demo %>% mutate(uPairID = paste(subj, study, sep = "_"), uID = paste(subj, study, diagnosis, sep = "_"))
+demo$uPairID <- as.numeric(as.factor(demo$uPairID))
+demo$uID = as.numeric(as.factor(demo$uID))
+
+# Checking something manually
+#study1demo <- demo %>% filter(study == 1)
+#study1demoi <- demoi %>% filter(study == 1)
+
+# > Okay, so, this is werid, but some studies of the demo seems to be reusing participants; is it because it is repeated measures? HOW?
+
+#study1$subj <- as.factor(study1$subj)
+#nlevels(study1$subj)
+#levels(study1$subj)
+#levels(study1$subj)[1:36] <- 1:36
+
+# dealing with the porblem of perticipants
+#loopframe3 <- demo
+#dat3 <- as.list(rep("", 7))
+# loop-de-loop
+#for(i in 1:7) {
+  #filt3 <- loopframe3 %>% filter(study == i) 
+  #filt3$subj <- as.factor(filt3$subj) 
+  #n3 <- nlevels(filt3$subj) %>% as.numeric()
+  #levels(filt3$subj)[1:n3] <- 1:n3
+  #dat3[[i]] <- data.frame(filt3)
+#}
+# Making a dataframe
+#demoi <- do.call("rbind", dat3)
+
+#--> Correcting pitch
+pitch$study <- as.numeric(pitch$study)
+# Correcting the weird participants
+pitch <- pitch %>% mutate(uPairID = paste(subj, study, sep = "_"), uID = paste(subj, study, diagnosis, sep = "_"))
+pitch$uPairID <- as.numeric(as.factor(pitch$uPairID))
+pitch$uID = as.numeric(as.factor(pitch$uID))
+
+# study 1
+#study1 <- pitch %>% filter(study == 1)
+#study1$subj <- as.factor(study1$subj)
+#nlevels(study1$subj)
+#levels(study1$subj)
+#levels(study1$subj)[1:36] <- 1:36
+# study 2
+#study2 <- pitch %>% filter(study == 2)
+#study2$subj <- as.factor(study2$subj)
+#nlevels(study2$subj)
+#levels(study2$subj)
+#levels(study2$subj)[1:25] <- 1:25 # 37:61
+# study 3
+#study3 <- pitch %>% filter(study == 3)
+#study3$subj <- as.factor(study3$subj)
+#nlevels(study3$subj)
+#levels(study3$subj)
+#levels(study3$subj)[1:29] <- 1:29 # 62:90
+# study 4
+#study4 <- pitch %>% filter(study == 4)
+#study4$subj <- as.factor(study4$subj)
+#nlevels(study4$subj)
+#levels(study4$subj)
+#levels(study4$subj)[1:32] <- 1:32 # 91:122
+# study 5
+#study5 <- pitch %>% filter(study == 5)
+#study5$subj <- as.factor(study5$subj)
+#nlevels(study5$subj)
+#levels(study5$subj)
+#levels(study5$subj)[1:26] <- 1:26 # 123:148
+# study 6
+#study6 <- pitch %>% filter(study == 6)
+#study6$subj <- as.factor(study6$subj)
+#nlevels(study6$subj)
+#levels(study6$subj)
+#levels(study6$subj)[1:43] <- 1:43 # 149:191
+# study 7
+#study7 <- pitch %>% filter(study == 7)
+#study7$subj <- as.factor(study7$subj)
+#nlevels(study7$subj)
+#levels(study7$subj)
+#levels(study7$subj)[1:13] <- 1:13 # 192:204
+
+# binding them together
+#bind <- rbind(study1, study2, study3, study4, study5, study6, study7)
+
+# Nice loop that does the whole process of you (don't know if I can do the more specific subject numbers)
+
+#loopframe <- pitch
+#dat <- as.list(rep("", 7))
+# loop-de-loop
+#for(i in 1:7) {
+  #filt <- loopframe %>% filter(study == i) 
+  #filt$subj <- as.factor(filt$subj) 
+  #n <- nlevels(filt$subj) %>% as.numeric()
+  #levels(filt$subj)[1:n] <- 1:n
+  #dat[[i]] <- data.frame(filt)
+#}
+# Making a dataframe
+#pitchi <- do.call("rbind", dat)
+
+
+#--> Correcting durr
+# creating a subj column
+durr$soundname <- as.character(durr$soundname)
+durr$subj <- durr$soundname %>% str_split(pattern = "S", simplify = T)
+durr$subj <- str_extract(durr$subj[,3], "\\d{1,3}")
+# Creating a diagnosis
+durr$diagnosis <- durr$soundname %>% str_split(pattern = "D", simplify = T)
+durr$diagnosis <- str_extract(durr$diagnosis[,2], "\\d{1}")
+# releveling
+levels(durr$diagnosis)
+durr$diagnosis <- as.factor(durr$diagnosis) %>% revalue(c("0"="HC", "1"="SCZ"))
+levels(durr$diagnosis) # Much better
+# Trial
+durr$trial <- durr$soundname %>% str_split(pattern = "T", simplify = T)
+durr$trial <- str_extract(durr$trial[,2], "\\d{1,2}")
+# Study
+durr$study <- durr$soundname %>% str_split(pattern = "y", simplify = T)
+durr$study <- str_extract(durr$study[,2], "\\d{1}")
+
+# dealing with the problem of perticipants
+durr$study <- as.numeric(durr$study)
+# Correcting the weird participants
+durr <- durr %>% mutate(uPairID = paste(subj, study, sep = "_"), uID = paste(subj, study, diagnosis, sep = "_"))
+durr$uPairID <- as.numeric(as.factor(durr$uPairID))
+durr$uID = as.numeric(as.factor(durr$uID))
+
+#durr$study <- as.numeric(durr$study)
+#loopframe2 <- durr
+#dat2 <- as.list(rep("", 7))
+# loop-de-loop
+#for(i in 1:7) {
+  #filt2 <- loopframe2 %>% filter(study == i) 
+  #filt2$subj <- as.factor(filt2$subj) 
+  #n2 <- nlevels(filt2$subj) %>% as.numeric()
+  #levels(filt2$subj)[1:n2] <- 1:n2
+  #dat2[[i]] <- data.frame(filt2)
+#}
+# Making a dataframe
+#durri <- do.call("rbind", dat2)
+
+# Merging time!
+durr$trial <- as.integer(durr$trial)
+demo$study <- as.numeric(demo$study)
+durr$subj <- as.integer(durr$subj)
+durri <- durr %>% select(uID, ASD..speakingtime.nsyll., articulation.rate..nsyll...phonationtime., speechrate..nsyll.dur., phonationtime..s., dur..s., npause, nsyll)
+pitchi <- pitch %>% select(uID, diagnosis, trial, study, mean, sd, min, max, median, IQR, MAD, CV)
+durrmo <- merge(durr, pitch)
+complete <- merge(durrmo, demo)
+
+# Correcting the weird participants
+comp <- complete %>% mutate(uPairID = paste(subj, study, sep = "_"), uID = paste(subj, study, diagnosis, sep = "_"))
+comp$uPairID <- as.numeric(as.factor(comp$uPairID))
+comp$uID = as.numeric(as.factor(comp$uID))
+
+# Getting rid of unwanted columns
+comp$subj <- NULL
+comp$soundname <- NULL
+comp <- comp[, c(29, 28, 1:27)]
+# HAH!
+
+# So, this is weird. We are missing a LOT of data. even just going from durr to picth.it's not the NA's though. I can see that much. 
+# Ok, so, I've corrected some of this, but there are still a bunch of missing data. This might have to do with inconsistant participants betweeen the dataframes.
+
+# OK, Experiment time 
+#expdurr <- durri %>% select(subj, trial, study)
+#exppit <- pitchi %>% select(subj, trial, study)
+#expcom <- merge(exppit, expdurr)
+# there seems to be some inconsistancies between studies when it comes to stuff like participants and such 
+#expdurr <- expdurr %>% arrange(subj)
+#exppit <- exppit %>% arrange(subj)
+
+#comp <- expdurr$subj == exppit$subj
+#length(comp2[FALSE])
+
+#comp <- expdurr$trial == exppit$trial
+
+#expdurr$subj <- as.character(expdurr$subj)
+#exppit$subj <- as.character(exppit$subj)
+#unique(expdurr$subj[! expdurr$subj %in% exppit$subj])
+
+#expdurr$trial <- as.character(expdurr$trial) 
+#expdurrish <- expdurr %>% group_by(subj, study) %>% dplyr::summarise(n = n())
+#exppitish <- exppit %>% group_by(subj, study) %>% dplyr::summarise(n = n())
+
+#huh <- expdurrish[expdurrish$n != exppitish$n,1:3]
+
+#comp2 <- expdurrish$n == exppitish$n
+#comp2 <- as.character(comp2)
+#comp2[comp2 != "TRUE"]
+#tester <- comp2 %>% filter(comp2 == FALSE) %>% length()
+
+# There acutally seems to be some differences between the number of trials in the two datasets. hm. I wonder if this is also true for the unscaled dataframes
+
+#unique(group_demo$Child.ID[! group_demo$Child.ID %in% group_utt$SUBJ])
+# Now we save them
+
+```
+
+## Now we need to describe our sample
+
+First look at the missing data: we should exclude all recordings for which we do not have complete data.
+Then count the participants and recordinsgs by diagnosis, report their gender, age and symptom severity (SANS, SAPS and Social)
+Finally, do the same by diagnosis and study, to assess systematic differences in studies.
+I like to use group_by() %>% summarize() for quick summaries
+
+```{r}
+# Removing all rows containing NA's 
+comp <- na.omit(comp)
+# And we just lost a BUNCH of data. Like, entire studies have gone missing. I'll hold off on interpreting as much as possible until the studygroup can get through it together. 
+
+# Participants by diagnosis with relevant information
+bydiag <- comp %>% group_by(diagnosis) %>% dplyr::summarise(n = n(), FemaleN = sum(Gender == "F"), Meanage = mean(Age), MeanSANS = mean(SANS), MeanSAPS = mean(SAPS))
+# The same, but by both study and diagnosis
+bystudy <- comp %>% group_by(diagnosis, study) %>% dplyr::summarise(n = n(), FemaleN = sum(Gender == "F"), Meanage = mean(Age), MeanSANS = mean(SANS), MeanSAPS = mean(SAPS))
+
+
+```
+
+## Now we can analyze the data
+
+If we look at the meta-analysis, there are differences (measured as Hedges' g, very close to Cohen's d, that is, in standard deviations) in
+- pitch variability (lower, Hedges' g: -0.55, 95% CIs: -1.06, 0.09)
+- proportion of spoken time (lower, Hedges' g: -1.26, 95% CIs: -2.26, 0.25)
+- speech rate (slower, Hedges' g: -0.75, 95% CIs: -1.51, 0.04)
+- pause duration (longer, Hedges' g: 1.89, 95% CIs: 0.72, 3.21). (Duration - Spoken Duration) / PauseN
+
+We need therefore to set up 4 models to replicate the findings. Feel free of course to test more features.
+
+N.B. the meta-analytic findings are on scaled measures. If you want to compare your results with them, you need to scale your measures as well: subtract the mean, and divide by the standard deviation.
+N.N.B. We want to think carefully about fixed and random effects in our model. In particular: how should study be included? Does it make sense to have all studies put together? Does it make sense to analyze both languages together? Relatedly: does it make sense to scale all data from all studies together?
+N.N.N.B. If you want to estimate the studies separately, you can try this syntax:  Feature ~ 0 + Study + Study:Diagnosis + [your randomEffects]. Now you'll have an intercept per each study (the estimates for the controls) and an effect of diagnosis per each study
+
+- Bonus points: cross-validate the models and report the betas and standard errors from all rounds to get an idea of how robust the estimates are. 
+
+```{r}
+
+```
+
+## N.B. Remember to save the acoustic features of voice in a separate file, so to be able to load them next time
+
+
+## Reminder of the report to write 
+
+Part 1 - Can we find a difference in acoustic features in schizophrenia?
+- Describe your sample (n of studies, n of participants, age, gender, clinical and cognitive features of the two groups) and critically assess whether the groups (schizophrenia and controls) are balanced. N.B. you need to take studies into account.
+- Discuss the analysis necessary to replicate the meta-analytic findings: which fixed and random effects should be included, given your dataset? E.g. what about language and study, age and gender? Discuss also how studies and languages should play a role in your analyses. E.g. should you analyze each study individually? Or each language individually? Or all together? Each of these choices makes some assumptions about how similar you expect the studies/languages to be.
+- Describe the acoustic profile of a schizophrenic voice: which features are different? E.g. People with schizophrenia tend to have high-pitched voice, and present bigger swings in their prosody than controls. N.B. look also at effect sizes. How do these findings relate to the meta-analytic findings?
+- Your report should look like a methods paragraph followed by a result paragraph in a typical article (think the Communication and Cognition paper)
+
+
