@@ -183,9 +183,9 @@ demo$diagnosis <- as.character(demo$diagnosis) %>% as.factor() %>% revalue(c("Co
 levels(demo$diagnosis) # Much better
 
 # Dealing with the issue of weird participant numbers
-demo <- demo %>% mutate(uPairID = paste(subj, study, sep = "_"), uID = paste(subj, study, diagnosis, sep = "_"))
-demo$uPairID <- as.numeric(as.factor(demo$uPairID))
-demo$uID = as.numeric(as.factor(demo$uID))
+#demo <- demo %>% mutate(uPairID = paste(subj, study, sep = "_"), uID = paste(subj, study, diagnosis, sep = "_"))
+#demo$uPairID <- as.numeric(as.factor(demo$uPairID))
+#demo$uID = as.numeric(as.factor(demo$uID))
 
 # Checking something manually
 #study1demo <- demo %>% filter(study == 1)
@@ -303,9 +303,9 @@ durr$study <- str_extract(durr$study[,2], "\\d{1}")
 # dealing with the problem of perticipants
 durr$study <- as.numeric(durr$study)
 # Correcting the weird participants
-durr <- durr %>% mutate(uPairID = paste(subj, study, sep = "_"), uID = paste(subj, study, diagnosis, sep = "_"))
-durr$uPairID <- as.numeric(as.factor(durr$uPairID))
-durr$uID = as.numeric(as.factor(durr$uID))
+#durr <- durr %>% mutate(uPairID = paste(subj, study, sep = "_"), uID = paste(subj, study, diagnosis, sep = "_"))
+#durr$uPairID <- as.numeric(as.factor(durr$uPairID))
+#durr$uID = as.numeric(as.factor(durr$uID))
 
 #durr$study <- as.numeric(durr$study)
 #loopframe2 <- durr
@@ -325,8 +325,8 @@ durr$uID = as.numeric(as.factor(durr$uID))
 durr$trial <- as.integer(durr$trial)
 demo$study <- as.numeric(demo$study)
 durr$subj <- as.integer(durr$subj)
-durri <- durr %>% select(uID, ASD..speakingtime.nsyll., articulation.rate..nsyll...phonationtime., speechrate..nsyll.dur., phonationtime..s., dur..s., npause, nsyll)
-pitchi <- pitch %>% select(uID, diagnosis, trial, study, mean, sd, min, max, median, IQR, MAD, CV)
+#durri <- durr %>% select(ASD..speakingtime.nsyll., articulation.rate..nsyll...phonationtime., speechrate..nsyll.dur., phonationtime..s., dur..s., npause, nsyll)
+#pitchi <- pitch %>% select(diagnosis, trial, study, mean, sd, min, max, median, IQR, MAD, CV)
 durrmo <- merge(durr, pitch)
 complete <- merge(durrmo, demo)
 
@@ -388,13 +388,13 @@ I like to use group_by() %>% summarize() for quick summaries
 
 ```{r}
 # Removing all rows containing NA's 
-comp <- na.omit(comp)
+compNA <- na.omit(comp)
 # And we just lost a BUNCH of data. Like, entire studies have gone missing. I'll hold off on interpreting as much as possible until the studygroup can get through it together. 
 
 # Participants by diagnosis with relevant information
-bydiag <- comp %>% group_by(diagnosis) %>% dplyr::summarise(n = n(), FemaleN = sum(Gender == "F"), Meanage = mean(Age), MeanSANS = mean(SANS), MeanSAPS = mean(SAPS))
+bydiag <- compNA %>% group_by(diagnosis) %>% dplyr::summarise(n = n(), FemaleN = sum(Gender == "F"), Meanage = mean(Age), MeanSANS = mean(SANS), MeanSAPS = mean(SAPS))
 # The same, but by both study and diagnosis
-bystudy <- comp %>% group_by(diagnosis, study) %>% dplyr::summarise(n = n(), FemaleN = sum(Gender == "F"), Meanage = mean(Age), MeanSANS = mean(SANS), MeanSAPS = mean(SAPS))
+bystudy <- compNA %>% group_by(diagnosis, study) %>% dplyr::summarise(n = n(), FemaleN = sum(Gender == "F"), Meanage = mean(Age), MeanSANS = mean(SANS), MeanSAPS = mean(SAPS))
 
 
 ```
