@@ -416,7 +416,34 @@ N.N.N.B. If you want to estimate the studies separately, you can try this syntax
 - Bonus points: cross-validate the models and report the betas and standard errors from all rounds to get an idea of how robust the estimates are. 
 
 ```{r}
+# Skale the relevant variables
+# Should all languages be skaled together? Probably not.
+scale <- compNA
+levels(scale$Language) # How many languages?
+# Separating the three languages
+danish <- filter(scale, Language == "Danish")
+chinese <- filter(scale, Language == "Chinese")
+japanese <- filter(scale, Language == "Japanese")
+# Scaling them all separately (subtract the mean, and divide by the standard deviation)
+# Danish
+danish$scale_median <- (danish$median - mean(danish$median))/sd(danish$median) # Is median the right measure for pich variation? Is this how I am supposed to scale it? I don't know!
+# > I have no Idea what "Proportion of spken time" might mean.
+# > I don't know how to find the pause duration either.
+danish$scale_speechrate <- (danish$speechrate..nsyll.dur. - mean(danish$speechrate..nsyll.dur.))/sd(danish$speechrate..nsyll.dur.)
 
+# Chinese
+chinese$scale_median <- (chinese$median - mean(chinese$median))/sd(chinese$median) # Is median the right measure for pich variation? Is this how I am supposed to scale it? I don't know!
+chinese$scale_speechrate <- (chinese$speechrate..nsyll.dur. - mean(chinese$speechrate..nsyll.dur.))/sd(chinese$speechrate..nsyll.dur.)
+
+# Japanese
+japanese$scale_median <- (japanese$median - mean(japanese$median))/sd(japanese$median) # Is median the right measure for pich variation? Is this how I am supposed to scale it? I don't know!
+japanese$scale_speechrate <- (japanese$speechrate..nsyll.dur. - mean(japanese$speechrate..nsyll.dur.))/sd(japanese$speechrate..nsyll.dur.)
+
+# Putting them back together
+back <- rbind(danish, chinese, japanese)
+
+# trying out a couple of models.
+# Feature ~ 0 + Study + Study:Diagnosis + [your randomEffects]
 ```
 
 ## N.B. Remember to save the acoustic features of voice in a separate file, so to be able to load them next time
