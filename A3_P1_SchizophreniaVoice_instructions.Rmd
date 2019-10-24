@@ -327,6 +327,17 @@ demo$study <- as.numeric(demo$study)
 durr$subj <- as.integer(durr$subj)
 #durri <- durr %>% select(ASD..speakingtime.nsyll., articulation.rate..nsyll...phonationtime., speechrate..nsyll.dur., phonationtime..s., dur..s., npause, nsyll)
 #pitchi <- pitch %>% select(diagnosis, trial, study, mean, sd, min, max, median, IQR, MAD, CV)
+
+# Removing 8 rows in pitchdata (happens automatically when merging.) (326 control)
+# Removing a participant from duration data. (31 from study seven)
+# Separating study 7
+study1_6 <- durr %>% filter(study != 7)
+study7 <- durr %>% filter(study == 7)
+# Getting rid of the participant
+study7<- subset(study7, subj!= 31)
+# Merging them back together
+durr <- rbind(study1_6, study7)
+# Actually doing the merging
 durrmo <- merge(durr, pitch)
 complete <- merge(durrmo, demo)
 
@@ -388,8 +399,16 @@ I like to use group_by() %>% summarize() for quick summaries
 
 ```{r}
 # Removing all rows containing NA's 
-compNA <- na.omit(comp)
+# compNA <- na.omit(comp)
 # And we just lost a BUNCH of data. Like, entire studies have gone missing. I'll hold off on interpreting as much as possible until the studygroup can get through it together. 
+
+# But we probably don't need that, so instead I'll just get rid of the values that are "undefined"
+comp$ASD..speakingtime.nsyll. <- as.character(comp$ASD..speakingtime.nsyll.)
+comp <- subset(comp, ASD..speakingtime.nsyll.!= " --undefined--")
+comp$ASD..speakingtime.nsyll. <- as.numeric(comp$ASD..speakingtime.nsyll.)
+
+# Saving this to a CSV
+
 
 # Participants by diagnosis with relevant information
 bydiag <- compNA %>% group_by(diagnosis) %>% dplyr::summarise(n = n(), FemaleN = sum(Gender == "F"), Meanage = mean(Age), MeanSANS = mean(SANS), MeanSAPS = mean(SAPS))
